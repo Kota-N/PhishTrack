@@ -20,8 +20,6 @@ int main(int argc, char *argv[])
             QCoreApplication::exit(-1);
     }, Qt::QueuedConnection);
 
-
-//       qmlRegisterType<QList<QMap<QString, QVariant>>>();
     QScopedPointer<SqliteDB> database(new SqliteDB);
     engine.rootContext()->setContextProperty("database", database.data());
 

@@ -1,11 +1,13 @@
 #include "sqlitedb.h"
 
+QString dbFilePath = "/Users/user/Desktop/phishtrack.sqlite";
+
 SqliteDB::SqliteDB(QObject *parent) : QObject(parent)
 {
     if (QSqlDatabase::isDriverAvailable("QSQLITE"))
     {
         QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-        db.setDatabaseName("db.qsqlite");
+        db.setDatabaseName("phishtrack.sqlite");
 
         if(!db.open()) qDebug("Error opening database");
 
@@ -14,14 +16,6 @@ SqliteDB::SqliteDB(QObject *parent) : QObject(parent)
         if (!db.tables().contains("campaigns")) qry.exec("CREATE TABLE campaigns (id INTEGER PRIMARY KEY, date DATE UNIQUE);");
         if (!db.tables().contains("user_campaign")) qry.exec("CREATE TABLE user_campaign (id INTEGER PRIMARY KEY, user_id INTEGER, campaign_id INTEGER, FOREIGN KEY(user_id) REFERENCES users(id), FOREIGN key(campaign_id) REFERENCES campaigns(id));");
 
-        if (!qry.exec("INSERT OR IGNORE INTO users (medctr_id) VALUES ('test1');")) qDebug() << "Error inserting into users: " << qry.lastError();
-        if (!qry.exec("INSERT OR IGNORE INTO users (medctr_id) VALUES ('test2');")) qDebug() << "Error inserting into users: " << qry.lastError();
-        if (!qry.exec("INSERT OR IGNORE INTO users (medctr_id) VALUES ('testing testing testing');")) qDebug() << "Error inserting into users: " << qry.lastError();
-
-        if (!qry.exec("INSERT OR IGNORE INTO campaigns (date) VALUES ('2000-01-01');")) qDebug() << "Error inserting into campaigns: " << qry.lastError();
-        if (!qry.exec("INSERT OR IGNORE INTO campaigns (date) VALUES ('2000-01-02');")) qDebug() << "Error inserting into campaigns: " << qry.lastError();
-        if (!qry.exec("INSERT OR IGNORE INTO campaigns (date) VALUES ('2000-01-03');")) qDebug() << "Error inserting into campaigns: " << qry.lastError();
-        if (!qry.exec("INSERT OR IGNORE INTO campaigns (date) VALUES ('2000-01-04');")) qDebug() << "Error inserting into campaigns: " << qry.lastError();
     }
 
 }
@@ -152,28 +146,97 @@ QVariantList SqliteDB::getUserCampaignCampaignIds()
     return userCampaignCampaignids;
 }
 
+QVariantList SqliteDB::getDataForMainPage()
+{
+    QVariantList dataForMainPage;
+    QVariantList medctrIdColumn;
+    QVariantList countColumn;
+    QVariantList dateColumn;
+    QSqlQuery qry;
+
+    if (!qry.exec("SELECT users.medctr_id, COUNT(campaigns.date) AS count, group_concat(campaigns.date) AS date FROM users JOIN user_campaign ON users.id = user_campaign.user_id JOIN campaigns ON campaigns.id = user_campaign.campaign_id GROUP BY users.medctr_id ORDER BY count DESC, medctr_id ASC")) qDebug() << "Error selecting and joining tables: " << qry.lastError();
+
+    while(qry.next()) {
+        QVariantMap medctrIdRow;
+        QVariantMap countRow;
+        QVariantMap dateRow;
+        medctrIdRow["medctr_id"] = qry.value(0).toString();
+        countRow["count"] = qry.value(1).toString();
+        dateRow["date"] = qry.value(2).toString();
+        medctrIdColumn.push_back(medctrIdRow);
+        countColumn.push_back(countRow);
+        dateColumn.push_back(dateRow);
+    }
+
+    dataForMainPage.push_back(medctrIdColumn);
+    dataForMainPage.push_back(countColumn);
+    dataForMainPage.push_back(dateColumn);
+
+    return dataForMainPage;
+}
+
+void SqliteDB::exportCSV(QString folderPath)
+{
+    getDataForMainPage();
+
+    QFile file("/" + folderPath + "/phishtrack.csv");
+    if (file.open(QFile::WriteOnly | QFile::Text)) {
+        QSqlQuery qry;
+        QTextStream out(&file);
+
+        out << "medctr_id,count,date\n";
+
+        if (!qry.exec("SELECT users.medctr_id, COUNT(campaigns.date) AS count, group_concat(campaigns.date) AS date FROM users JOIN user_campaign ON users.id = user_campaign.user_id JOIN campaigns ON campaigns.id = user_campaign.campaign_id GROUP BY users.medctr_id ORDER BY count DESC, medctr_id ASC")) qDebug() << "Error selecting and joining tables: " << qry.lastError();
+
+        while(qry.next()) {
+            QString medctrId = qry.value(0).toString();
+            QString count = qry.value(1).toString();
+            QString date = qry.value(2).toString();
+            out << medctrId + "," + count + "," + "\"" + date + "\"\n";
+        }
+
+        file.flush();
+        file.close();
+    }
+}
+
 // -------------------
 // DropData page
 // -------------------
 
-void SqliteDB::cleanDroppedData(QString data)
+QString currentDate;
+
+void SqliteDB::setSelectedDate(QString date)
 {
+    currentDate = date;
+}
+
+void SqliteDB::cleanDataAndInsertIntoUsers(QString data)
+{
+    insertDateIntoCampaigns(currentDate);
     QSqlQuery qry;
     QStringList tabSplit = data.split("\t");
     for (int i = 0; i < tabSplit.size(); i++) {
         if (tabSplit[i].contains("User Account Compromised")) {
             QStringList hyphenSplit = tabSplit[i].split(" - ");
             if (!qry.exec("INSERT OR IGNORE INTO users (medctr_id) VALUES ('" + hyphenSplit[0] + "');")) qDebug() << "Error inserting into users: " << qry.lastError();
-            qDebug() << hyphenSplit[0];
-//            insertUserCampaign(hyphenSplit[0]);
+            insertUserCampaign(hyphenSplit[0]);
         }
     }
+
 }
 
-//void SqliteDB::insertUserCampaign(QString medctr_id)
-//{
-//    QSqlQuery qry;
-//    QString submittedDate = ui->dateEdit->date().toString();
-//    if (!qry.exec("INSERT INTO user_campaign (user_id, campaign_id) SELECT users.id, campaigns.id FROM users, campaigns WHERE users.medctr_id='" + medctr_id + "' AND campaigns.date='" + submittedDate + "';"))
-//        qDebug() << "Error inserting into user_campaign: " << qry.lastError();
-//}
+void SqliteDB::insertDateIntoCampaigns(QString date)
+{
+    QSqlQuery qry;
+    if (!qry.exec("INSERT OR IGNORE INTO campaigns (date) VALUES ('" + date + "');")) qDebug() << "Error inserting into campaigns: " << qry.lastError();
+
+}
+
+
+void SqliteDB::insertUserCampaign(QString medctr_id)
+{
+    QSqlQuery qry;
+    if (!qry.exec("INSERT INTO user_campaign (user_id, campaign_id) SELECT users.id, campaigns.id FROM users, campaigns WHERE users.medctr_id='" + medctr_id + "' AND campaigns.date='" + currentDate + "';"))
+        qDebug() << "Error inserting into user_campaign: " << qry.lastError();
+}

@@ -7,7 +7,12 @@
 #include <QSqlDriver>
 #include <QSqlQuery>
 #include <QSqlError>
+
+#include <QFile>
+#include <QTextStream>
+
 #include <QDebug>
+
 
 class SqliteDB : public QObject
 {
@@ -27,12 +32,17 @@ public:
     Q_INVOKABLE QVariantList getUserCampaignUserIds();
     Q_INVOKABLE QVariantList getUserCampaignCampaignIds();
 
-    Q_INVOKABLE void cleanDroppedData(QString data);
+    Q_INVOKABLE QVariantList getDataForMainPage();
 
-//    void insertUserCampaign(QString medctr_id);
+    Q_INVOKABLE void exportCSV(QString folderPath);
+
+    Q_INVOKABLE void setSelectedDate(QString date);
+
+    Q_INVOKABLE void cleanDataAndInsertIntoUsers(QString data);
+    void insertDateIntoCampaigns(QString date);
+    void insertUserCampaign(QString medctr_id);
 
 signals:
-
 };
 
 #endif // SQLITEDB_H

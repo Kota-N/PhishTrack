@@ -5,10 +5,10 @@ import Qt.labs.qmlmodels 1.0
 
 ApplicationWindow {
     id: window
-    width: 1000
-    height: 600
+    width: 1100
+    height: 650
     visible: true
-    title: qsTr("Hello World")
+    title: qsTr("PhishTrack")
 
 
 
@@ -26,7 +26,7 @@ ApplicationWindow {
 
         }
         TabButton {
-            text: qsTr("<font color='white'>DROP DATA</font>")
+            text: qsTr("<font color='white'>INSERT DATA</font>")
             checked: swipeView.currentIndex === 1 ? true : false
             background: Rectangle {
                 color: tabBar.currentIndex === 1 ? "#697A6D" :  "#323B34"
@@ -52,7 +52,7 @@ ApplicationWindow {
         Home {}
         DropData {}
         Tables {}
-
+        Component.onCompleted: contentItem.interactive = false
     }
 
 }

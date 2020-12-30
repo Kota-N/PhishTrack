@@ -34,7 +34,7 @@ Page {
                 onReleased: {
                     insertBtn.opacity = 1.0
                     insertBtn.scale = 1.0
-                    database.cleanDroppedData(dataInput.text)
+                    database.cleanDataAndInsertIntoUsers(dataInput.text)
                     dataInput.text = ""
                 }
             }

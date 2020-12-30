@@ -4,8 +4,6 @@
         <file>Home.qml</file>
         <file>DropData.qml</file>
         <file>Tables.qml</file>
-        <file>Test.qml</file>
-        <file>TestForm.ui.qml</file>
         <file>DatePicker.qml</file>
     </qresource>
 </RCC>
